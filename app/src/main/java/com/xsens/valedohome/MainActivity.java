@@ -12,7 +12,6 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.nfc.Tag;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -21,6 +20,7 @@ import android.util.SparseArray;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Window;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,11 +28,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.UUID;
 
-/**
- * Created by Dave Smith
- * Double Encore, Inc.
- * MainActivity
- */
+
 public class MainActivity extends Activity implements BluetoothAdapter.LeScanCallback {
     private static final String TAG = "BluetoothGattActivity";
 
@@ -64,6 +60,8 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
 
     private ProgressDialog mProgress;
 
+    private QuaternionGraph quaternionGraph;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -72,12 +70,19 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         setProgressBarIndeterminate(true);
 
         /*
+         * We're goint to create a quaternion graph, showing four values on a single layout
+         */
+        quaternionGraph = new QuaternionGraph();
+        quaternionGraph.showGraph(this, (LinearLayout) findViewById(R.id.graph));
+
+
+        /*
          * We are going to display the results in some text fields
          */
-        mQuatW = (TextView) findViewById(R.id.text_quat_w);
-        mQuatX = (TextView) findViewById(R.id.text_quat_x);
-        mQuatY = (TextView) findViewById(R.id.text_quat_y);
-        mQuatZ = (TextView) findViewById(R.id.text_quat_z);
+//        mQuatW = (TextView) findViewById(R.id.text_quat_w);
+//        mQuatX = (TextView) findViewById(R.id.text_quat_x);
+//        mQuatY = (TextView) findViewById(R.id.text_quat_y);
+//        mQuatZ = (TextView) findViewById(R.id.text_quat_z);
 
         /*
          * Bluetooth in Android 4.3 is accessed via the BluetoothManager, rather than
@@ -186,10 +191,10 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
     }
 
     private void clearDisplayValues() {
-        mQuatW.setText("---");
-        mQuatX.setText("---");
-        mQuatY.setText("---");
-        mQuatZ.setText("---");
+//        mQuatW.setText("---");
+//        mQuatX.setText("---");
+//        mQuatY.setText("---");
+//        mQuatZ.setText("---");
     }
 
 
@@ -459,7 +464,7 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
     /* Methods to extract sensor data and update the UI */
 
     private void updateOrientationValues(BluetoothGattCharacteristic characteristic) {
-        long time = System.nanoTime();
+//        long time = System.nanoTime();
         byte[] bytes = characteristic.getValue();
 
         float w = ByteBuffer.wrap(bytes, 0, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
@@ -467,13 +472,18 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         float y = ByteBuffer.wrap(bytes, 8, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
         float z = ByteBuffer.wrap(bytes, 12, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
 
+        //Add the new datapoint to the graph, and it will handle the presentation
+        quaternionGraph.addDataPoint(w, x, y, z);
+
+        //testing string parse time
 //        Log.d("Float time", Long.toString(time - System.nanoTime()));
 
-        mQuatW.setText(Float.toString(w));
-        mQuatX.setText(Float.toString(x));
-        mQuatY.setText(Float.toString(y));
-        mQuatZ.setText(Float.toString(z));
+//        mQuatW.setText(Float.toString(w));
+//        mQuatX.setText(Float.toString(x));
+//        mQuatY.setText(Float.toString(y));
+//        mQuatZ.setText(Float.toString(z));
 
+        //trying to figure out if printing the values is causing the 0.5s lag.
 //        Log.d("Parse time", Long.toString(time - System.nanoTime()));
     }
 }
