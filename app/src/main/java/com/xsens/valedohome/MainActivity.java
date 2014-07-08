@@ -176,6 +176,9 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
             default:
                 //Obtain the discovered device to connect with
                 BluetoothDevice device = mDevices.get(item.getItemId());
+                if (device == null) //device not available anymore
+                    return false;
+
                 Log.i(TAG, "Connecting to "+device.getName());
                 /*
                  * Make a connection with the device using the special LE-specific
