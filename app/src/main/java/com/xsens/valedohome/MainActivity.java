@@ -12,14 +12,18 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -56,11 +60,10 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
 
     private BluetoothGatt mConnectedGatt;
 
-    private TextView mQuatX, mQuatY, mQuatZ, mQuatW;
-
     private ProgressDialog mProgress;
 
-    private QuaternionGraph quaternionGraph;
+    private XkfCe3DGLSurface m_view;
+    private RenderLimiter m_renderLimiter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,20 +72,22 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         setContentView(R.layout.activity_main);
         setProgressBarIndeterminate(true);
 
-        /*
-         * We're goint to create a quaternion graph, showing four values on a single layout
-         */
-        quaternionGraph = new QuaternionGraph();
-        quaternionGraph.showGraph(this, (LinearLayout) findViewById(R.id.graph));
+        m_view = new XkfCe3DGLSurface(this); //m_view is of xkfce3dglsurface type
+        m_renderLimiter = new RenderLimiter(20);
+        ViewGroup layout = (ViewGroup)findViewById(R.id.main);
+        m_view.setEGLContextClientVersion(2);
+        m_view.setLayoutParams(new ViewGroup.LayoutParams( //basically, get available space
+                ViewGroup.LayoutParams.MATCH_PARENT,    //and stretch the openGL m_view over it
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        layout.addView(m_view);
 
+        final DisplayMetrics displayMetrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
 
-        /*
-         * We are going to display the results in some text fields
-         */
-//        mQuatW = (TextView) findViewById(R.id.text_quat_w);
-//        mQuatX = (TextView) findViewById(R.id.text_quat_x);
-//        mQuatY = (TextView) findViewById(R.id.text_quat_y);
-//        mQuatZ = (TextView) findViewById(R.id.text_quat_z);
+        m_view.setRenderer(new XkfCe3DRenderer(this), displayMetrics.density);
+        m_view.setViewInsideOut(false);
+
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         /*
          * Bluetooth in Android 4.3 is accessed via the BluetoothManager, rather than
@@ -194,10 +199,6 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
     }
 
     private void clearDisplayValues() {
-//        mQuatW.setText("---");
-//        mQuatX.setText("---");
-//        mQuatY.setText("---");
-//        mQuatZ.setText("---");
     }
 
 
@@ -464,8 +465,15 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         }
     };
 
-    /* Methods to extract sensor data and update the UI */
+    public static float[] quatToMatrix(float[] quat)
+    {
+        float[] mat = new float[16];
+        float[] rotvec = {quat[1], quat[2], quat[3], quat[0]};
+        SensorManager.getRotationMatrixFromVector(mat, rotvec);
+        return mat;
+    }
 
+    /* Methods to extract sensor data and update the UI */
     private void updateOrientationValues(BluetoothGattCharacteristic characteristic) {
 //        long time = System.nanoTime();
         byte[] bytes = characteristic.getValue();
@@ -475,18 +483,9 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         float y = ByteBuffer.wrap(bytes, 8, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
         float z = ByteBuffer.wrap(bytes, 12, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
 
-        //Add the new datapoint to the graph, and it will handle the presentation
-        quaternionGraph.addDataPoint(w, x, y, z);
+        //quick fix
+        float quat[] = {w, -x, -y, -z};
 
-        //testing string parse time
-//        Log.d("Float time", Long.toString(time - System.nanoTime()));
-
-//        mQuatW.setText(Float.toString(w));
-//        mQuatX.setText(Float.toString(x));
-//        mQuatY.setText(Float.toString(y));
-//        mQuatZ.setText(Float.toString(z));
-
-        //trying to figure out if printing the values is causing the 0.5s lag.
-//        Log.d("Parse time", Long.toString(time - System.nanoTime()));
+        m_view.setRotationMatrix(quatToMatrix(quat));
     }
 }
